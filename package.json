@@ -1,0 +1,45 @@
+{
+    "name": "crunchyroll-webos-service",
+    "version": "1.0.0",
+    "description": "Service to forward requests in webos device",
+    "main": "index.js",
+    "scripts": {
+        "play": "node index.js",
+        "lint": "npx eslint --ext .js ./",
+        "build": "gulp build",
+        "clean": "gulp clean",
+        "build-p": "gulp build-p",
+        "build-p2": "npm ci --only=production"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/ediaz23/crunchyroll-webos-service.git"
+    },
+    "engines": {
+        "node": ">=8.12.0"
+    },
+    "engineStrict": true,
+    "keywords": [
+        "service",
+        "webos"
+    ],
+    "author": "Esteban Díaz <esteban.diazt23@gmail.com>",
+    "license": "Apache-2.0",
+    "bugs": {
+        "url": "https://github.com/ediaz23/crunchyroll-webos-service/issues"
+    },
+    "homepage": "https://github.com/ediaz23/crunchyroll-webos-service#readme",
+    "dependencies": {
+        "encoding": "^0.1.13",
+        "node-fetch": "^2.6.7"
+    },
+    "devDependencies": {
+        "del": "^4.1.1",
+        "eslint": "^6.5.0",
+        "gulp": "^4.0.2",
+        "gulp-jshint": "^2.1.0",
+        "gulp-shell": "^0.8.0",
+        "jshint": "^2.13.5",
+        "webos-service": "git+https://github.com/webosose/nodejs-module-webos-service.git"
+    }
+}

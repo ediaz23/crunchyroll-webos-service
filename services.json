@@ -1,0 +1,7 @@
+{
+    "id": "com.crunchyroll.webos.forwarding.service",
+    "description": "Crunchyroll Forwarding Webos Service",
+    "services": [{
+        "name": "com.crunchyroll.webos.forwarding.service"
+    }]
+}

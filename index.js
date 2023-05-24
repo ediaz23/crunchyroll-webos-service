@@ -2,15 +2,15 @@
 const logger = require('./logger')
 const fetch = require('node-fetch')
 
-
-logger.info('init service')
+const SERVICE_NAME = 'com.crunchyroll.webos.forwarding.service'
+logger.info(SERVICE_NAME)
 
 /** @type {import('webos-service').default} */
 let service = null
 
 try {
     const Service = require('webos-service')
-    service = new Service('com.crunchyroll.webos.forwarding.service')
+    service = new Service(SERVICE_NAME)
 } catch (_e) {
     service = {
         register: function(name, fn) {
@@ -37,11 +37,10 @@ const errorHandler = (message, error, name) => {
 
 service.register('forwardRequest', async message => {
     try {
-        const { config } = message.payload
-        const { url } = config
-        delete config.url
+        const url = message.payload.url
+        delete message.payload.url
         /** @type {import('node-fetch').Response}*/
-        const res = await fetch(url, config)
+        const res = await fetch(url, message.payload)
         const text = await res.text()
         message.respond({
             status: res.status,

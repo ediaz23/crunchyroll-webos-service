@@ -1,7 +1,7 @@
 {
-    "id": "com.crunchyroll.webos.forwarding.service",
+    "id": "com.crunchyroll.stream.app.service",
     "description": "Crunchyroll Forwarding Webos Service",
     "services": [{
-        "name": "com.crunchyroll.webos.forwarding.service"
+        "name": "com.crunchyroll.stream.app.service"
     }]
 }

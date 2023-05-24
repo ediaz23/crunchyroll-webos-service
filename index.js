@@ -2,7 +2,7 @@
 const logger = require('./logger')
 const fetch = require('node-fetch')
 
-const SERVICE_NAME = 'com.crunchyroll.webos.forwarding.service'
+const SERVICE_NAME = 'com.crunchyroll.stream.app.service'
 logger.info(SERVICE_NAME)
 
 /** @type {import('webos-service').default} */
@@ -46,7 +46,7 @@ service.register('forwardRequest', async message => {
             status: res.status,
             statusText: res.statusText,
             type: res.headers.get('Content-Type'),
-            contet: text,
+            content: text,
         })
     } catch (error) {
         errorHandler(message, error, 'startSsdp')

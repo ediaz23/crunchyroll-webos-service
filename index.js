@@ -37,10 +37,11 @@ const errorHandler = (message, error, name) => {
 
 service.register('forwardRequest', async message => {
     try {
-        const url = message.payload.url
+        const { url } = message.payload
         delete message.payload.url
+        const body = message.payload
         /** @type {import('node-fetch').Response}*/
-        const res = await fetch(url, message.payload)
+        const res = await fetch(url, body)
         const text = await res.text()
         message.respond({
             status: res.status,
@@ -49,7 +50,7 @@ service.register('forwardRequest', async message => {
             content: text,
         })
     } catch (error) {
-        errorHandler(message, error, 'startSsdp')
+        errorHandler(message, error, 'forwardRequest')
     }
 })
 

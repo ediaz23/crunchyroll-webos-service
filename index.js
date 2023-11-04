@@ -41,13 +41,15 @@ service.register('forwardRequest', async message => {
         delete message.payload.url
         const body = message.payload
         /** @type {import('node-fetch').Response}*/
-        const res = await fetch(url, body)
-        const text = await res.text()
+        const result = await fetch(url, body)
+        const data = await result.arrayBuffer()
+        const content = Buffer.from(data).toString('base64')
+        const headers = Object.fromEntries(result.headers)
         message.respond({
-            status: res.status,
-            statusText: res.statusText,
-            type: res.headers.get('Content-Type'),
-            content: text,
+            status: result.status,
+            statusText: result.statusText,
+            headers: headers,
+            content,
         })
     } catch (error) {
         errorHandler(message, error, 'forwardRequest')

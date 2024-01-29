@@ -39,7 +39,11 @@ service.register('forwardRequest', async message => {
     try {
         const { url } = message.payload
         delete message.payload.url
+        /** @type {import('node-fetch').RequestInit}*/
         const body = message.payload
+        if (body.headers && body.headers['Content-Type'] === 'application/octet-stream' && body.body) {
+            body.body = Buffer.from(body.body, 'base64')
+        }
         /** @type {import('node-fetch').Response}*/
         const result = await fetch(url, body)
         const data = await result.arrayBuffer()

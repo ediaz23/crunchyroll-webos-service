@@ -34,6 +34,17 @@ const errorHandler = (message, error, name) => {
     logger.error(error)
 }
 
+/**
+ * Fix for old node version
+ */
+function fromEntries(headers) {
+    const result = {}
+    for (const [key, value] of Object.entries(headers)) {
+        result[key] = value
+    }
+    return result;
+}
+
 
 service.register('forwardRequest', async message => {
     try {
@@ -48,7 +59,7 @@ service.register('forwardRequest', async message => {
         const result = await fetch(url, body)
         const data = await result.arrayBuffer()
         const content = Buffer.from(data).toString('base64')
-        const headers = Object.fromEntries(result.headers)
+        const headers = fromEntries(result.headers)
         message.respond({
             status: result.status,
             statusText: result.statusText,

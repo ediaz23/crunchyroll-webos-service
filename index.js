@@ -65,6 +65,7 @@ service.register('forwardRequest', async message => {
             statusText: result.statusText,
             headers: headers,
             content,
+            resUrl: result.url
         })
     } catch (error) {
         errorHandler(message, error, 'forwardRequest')

@@ -1,9 +1,9 @@
 
-const logger = require('./logger')
 const fetch = require('node-fetch')
+const https = require("https")
 
 const SERVICE_NAME = 'com.crunchyroll.stream.app.service'
-logger.info(SERVICE_NAME)
+console.info(SERVICE_NAME)
 
 /** @type {import('webos-service').default} */
 let service = null
@@ -24,14 +24,17 @@ try {
  * @param {Error} error
  * @param {String} name
  */
-const errorHandler = (message, error, name) => {
+const errorHandler = (message, error, name, url, body) => {
     if (error instanceof Error) {
         message.respond({ returnValue: false, error: `${error.name} - ${error.message}`, stack: error.stack })
     } else {
         message.respond({ returnValue: false, error: JSON.stringify(error) })
     }
-    logger.error(name)
-    logger.error(error)
+    if (error && 'status' in error) {
+        console.error(name, body.method || 'get', url, result.status)
+    } else {
+        console.error(name, body.method || 'get', url, error)
+    }
 }
 
 /**
@@ -45,21 +48,28 @@ function fromEntries(headers) {
     return result;
 }
 
+const agent = new https.Agent({
+    rejectUnauthorized: false,
+})
 
 service.register('forwardRequest', async message => {
+    /** @type {{url: String}} */
+    const { url } = message.payload
+    delete message.payload.url
+    /** @type {import('node-fetch').RequestInit}*/
+    const body = message.payload
     try {
-        const { url } = message.payload
-        delete message.payload.url
-        /** @type {import('node-fetch').RequestInit}*/
-        const body = message.payload
+        console.log('  forwardRequest', body.method || 'get', url)
         if (body.headers && body.headers['Content-Type'] === 'application/octet-stream' && body.body) {
             body.body = Buffer.from(body.body, 'base64')
         }
+        body.agent = agent
         /** @type {import('node-fetch').Response}*/
         const result = await fetch(url, body)
         const data = await result.arrayBuffer()
         const content = Buffer.from(data).toString('base64')
         const headers = fromEntries(result.headers)
+        console.info('  forwardRequest', body.method || 'get', url, result.status)
         message.respond({
             status: result.status,
             statusText: result.statusText,
@@ -68,7 +78,7 @@ service.register('forwardRequest', async message => {
             resUrl: result.url
         })
     } catch (error) {
-        errorHandler(message, error, 'forwardRequest')
+        errorHandler(message, error, '  forwardRequest', url, body)
     }
 })
 

@@ -1,16 +1,16 @@
-
+"use strict";
 const fetch = require('node-fetch')
-const https = require("https")
+const https = require('https')
 
-const SERVICE_NAME = 'com.crunchyroll.stream.app.service'
-console.info(SERVICE_NAME)
 
 /** @type {import('webos-service').default} */
 let service = null
 
 try {
+    const SERVICE_NAME = 'com.crunchyroll.stream.app.service'
     const Service = require('webos-service')
     service = new Service(SERVICE_NAME)
+    console.info(SERVICE_NAME)
 } catch (_e) {
     service = {
         register: function(name, fn) {
@@ -48,9 +48,7 @@ function fromEntries(headers) {
     return result;
 }
 
-const agent = new https.Agent({
-    rejectUnauthorized: false,
-})
+const agent = new https.Agent({ rejectUnauthorized: false })
 
 service.register('forwardRequest', async message => {
     /** @type {{url: String}} */

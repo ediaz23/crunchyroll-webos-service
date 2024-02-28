@@ -1,4 +1,5 @@
 "use strict";
+/* jshint node: true */
 const fetch = require('node-fetch')
 const https = require('https')
 
@@ -30,7 +31,7 @@ const errorHandler = (message, error, name) => {
     } else {
         message.respond({ returnValue: false, error: JSON.stringify(error) })
     }
-    console.error(name, url, error)
+    console.error(name, error)
 }
 
 /**

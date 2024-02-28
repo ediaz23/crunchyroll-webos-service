@@ -54,10 +54,12 @@ if (!console.error) { console.error = console.log }
 
 /*eslint-disable */
 switch (LEVEL) {
-    case 'debug': logger.debug = msg => { console.debug(getMessage(msg, 'debug')) };
-    case 'info': logger.info = msg => { console.info(getMessage(msg, 'info')) };
-    case 'error': logger.error = msg => { console.error(getMessage(msg, 'error')) };
-        break;
+    case 'debug':
+        logger.debug = msg => { console.debug(getMessage(msg, 'debug')) };  // jshint -W086
+    case 'info':
+        logger.info = msg => { console.info(getMessage(msg, 'info')) };  // jshint -W086
+    case 'error':
+        logger.error = msg => { console.error(getMessage(msg, 'error')) };
 }
 /*eslint-enable */
 

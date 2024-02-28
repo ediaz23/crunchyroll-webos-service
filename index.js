@@ -46,7 +46,11 @@ function fromEntries(headers) {
 
 const agent = new https.Agent({ rejectUnauthorized: false })
 
-service.register('forwardRequest', async message => {
+/**
+ * @param {import('webos-service').Message} message
+ * @returns {Promise}
+ */
+const forwardRequest = async message => {
     /** @type {{url: String}} */
     const { url } = message.payload
     delete message.payload.url
@@ -75,7 +79,13 @@ service.register('forwardRequest', async message => {
     } catch (error) {
         errorHandler(message, error, log_name)
     }
-})
+}
+
+const CONCURRENT_REQ_LIMIT = 8
+
+for (let concurrent = 0; concurrent < CONCURRENT_REQ_LIMIT; concurrent++) {
+    service.register(`forwardRequest${concurrent}`, forwardRequest)
+}
 
 module.exports = {
     webosService: service

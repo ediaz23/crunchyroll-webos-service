@@ -2,6 +2,7 @@
 /* jshint node: true */
 const fetch = require('node-fetch')
 const https = require('https')
+const http = require('http')
 
 
 /** @type {import('webos-service').default} */
@@ -45,7 +46,8 @@ function fromEntries(headers) {
     return result;
 }
 
-const agent = new https.Agent({ rejectUnauthorized: false })
+const agentHttps = new https.Agent({ rejectUnauthorized: false })
+const agentHttp = new http.Agent({ rejectUnauthorized: false })
 
 /**
  * @param {import('webos-service').Message} message
@@ -57,13 +59,13 @@ const forwardRequest = async message => {
     delete message.payload.url
     /** @type {import('node-fetch').RequestInit}*/
     const body = message.payload
-    const log_name = `${body.method || 'get'}  ${url.substring(0, 160)}`
+    const log_name = `${body.method || 'get'}  ${url.substring(0, 120)}`
     try {
         console.log(log_name)
         if (body.headers && body.headers['Content-Type'] === 'application/octet-stream' && body.body) {
             body.body = Buffer.from(body.body, 'base64')
         }
-        body.agent = agent
+        body.agent = url.startsWith('http://') ? agentHttp : agentHttps
         /** @type {import('node-fetch').Response}*/
         const result = await fetch(url, body)
         const data = await result.arrayBuffer()

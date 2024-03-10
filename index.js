@@ -37,13 +37,15 @@ const errorHandler = (message, error, name) => {
 
 /**
  * Fix for old node version
+ * @param {import('node-fetch').Headers} headers
+ * @returns {Object.<String, String>}
  */
 function fromEntries(headers) {
     const result = {}
-    for (const [key, value] of Object.entries(headers)) {
+    headers.forEach((value, key) => {
         result[key] = value
-    }
-    return result;
+    })
+    return result
 }
 
 const agentHttps = new https.Agent({ rejectUnauthorized: false })

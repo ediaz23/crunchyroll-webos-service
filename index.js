@@ -27,11 +27,17 @@ try {
  * @param {String} name
  */
 const errorHandler = (message, error, name) => {
-    if (error instanceof Error) {
-        message.respond({ returnValue: false, error: `${error.name} - ${error.message}`, stack: error.stack })
-    } else {
-        message.respond({ returnValue: false, error: JSON.stringify(error) })
+    let out = { returnValue: false }
+    if (message.isSubscription) {
+        out.id = message.payload.id
     }
+    if (error instanceof Error) {
+        out.error = `${error.name} - ${error.message}`
+        out.stack = error.stack
+    } else {
+        out.error = JSON.stringify(error)
+    }
+    message.respond(out)
     console.error(name, error)
 }
 
@@ -46,6 +52,28 @@ function fromEntries(headers) {
         result[key] = value
     })
     return result
+}
+
+/**
+ * Build a response
+ * @param {import('node-fetch').Response} res
+ * @param {ArrayBuffer} data
+ * @param {String} log_name
+ * @param {Object} extra
+ * @returns {Object}
+ */
+function makeResponse(res, data, log_name, extra) {
+    const content = Buffer.from(data).toString('base64')
+    const headers = fromEntries(res.headers)
+    console.info('  ', log_name, '  ', res.status)
+    return {
+        status: res.status,
+        statusText: res.statusText,
+        headers: headers,
+        content,
+        resUrl: res.url,
+        ...extra
+    }
 }
 
 const agentHttps = new https.Agent({ rejectUnauthorized: false })
@@ -69,18 +97,33 @@ const forwardRequest = async message => {
         }
         body.agent = url.startsWith('http://') ? agentHttp : agentHttps
         /** @type {import('node-fetch').Response}*/
-        const result = await fetch(url, body)
-        const data = await result.arrayBuffer()
-        const content = Buffer.from(data).toString('base64')
-        const headers = fromEntries(result.headers)
-        console.info('  ', log_name, '  ', result.status)
-        message.respond({
-            status: result.status,
-            statusText: result.statusText,
-            headers: headers,
-            content,
-            resUrl: result.url
-        })
+        const res = await fetch(url, body)
+        if (message.isSubscription) {
+            const total = parseInt(res.headers.get('content-length'))
+            const id = message.payload.id
+
+            let loaded = 0
+            let error
+            res.body.on('error', err => { error = err })
+            res.body.on('data', value => {
+                loaded += value.length
+                if (loaded === value.length) {
+                    message.respond(makeResponse(res, value, log_name, { id, loaded, total }))
+                } else {
+                    const content = Buffer.from(value).toString('base64')
+                    message.respond({ id, loaded, total, content, status: res.status })
+                }
+
+            })
+            await new Promise((resolve, reject) => {
+                res.body.on('close', () => {
+                    error ? reject(error) : resolve()
+                })
+            })
+        } else {
+            const data = await res.arrayBuffer()
+            message.respond(makeResponse(res, data, log_name, {}))
+        }
     } catch (error) {
         errorHandler(message, error, log_name)
     }

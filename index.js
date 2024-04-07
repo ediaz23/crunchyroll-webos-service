@@ -117,7 +117,11 @@ const forwardRequest = async message => {
             })
             await new Promise((resolve, reject) => {
                 res.body.on('close', () => {
-                    error ? reject(error) : resolve()
+                    if (error) {
+                        reject(error)
+                    } else {
+                        resolve()
+                    }
                 })
             })
         } else {

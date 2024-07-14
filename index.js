@@ -139,6 +139,26 @@ for (let concurrent = 0; concurrent < CONCURRENT_REQ_LIMIT; concurrent++) {
     service.register(`forwardRequest${concurrent}`, forwardRequest)
 }
 
+/**
+ * @param {import('webos-service').Message} message
+ * @returns {Promise}
+ */
+const testFunciont = async message => {
+    if (message.payload) {
+        if (message.payload.type === 'simple') {
+            message.respond({ status: 'okey' })
+        } else if (message.payload.type === 'request') {
+            await forwardRequest(message)
+        } else {
+            message.respond({ status: 'okey' })
+        }
+    } else {
+        message.respond({ status: 'okey' })
+    }
+}
+
+service.register('test', testFunciont)
+
 module.exports = {
     webosService: service
 }

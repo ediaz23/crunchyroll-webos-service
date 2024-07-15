@@ -15,17 +15,17 @@ gulp.task('misc', () =>
 )
 
 gulp.task('index', () =>
-    gulp.src('index.js')
+    gulp.src('src/index.js')
         .pipe(jshint())
         .pipe(jshint.reporter('default'))
-        .pipe(gulp.dest('dist'))
+        .pipe(gulp.dest('dist/src'))
 )
 
 gulp.task('logger', () =>
-    gulp.src('logger.js')
+    gulp.src('src/logger.js')
         .pipe(jshint())
         .pipe(jshint.reporter('default'))
-        .pipe(gulp.dest('dist'))
+        .pipe(gulp.dest('dist/src'))
 )
 
 gulp.task('node-insta', (cb) => {

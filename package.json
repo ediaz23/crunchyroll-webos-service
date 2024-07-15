@@ -2,14 +2,13 @@
     "name": "crunchyroll-webos-service",
     "version": "1.0.1",
     "description": "Service to forward requests in webos device",
-    "main": "index.js",
+    "main": "src/index.js",
     "scripts": {
         "play": "node index.js",
         "lint": "npx eslint --ext .js ./",
-        "build": "gulp build",
         "clean": "gulp clean",
+        "build": "gulp build",
         "build-p": "gulp build-p",
-        "build-p2": "npm ci --only=production",
         "test": "./test.sh"
     },
     "repository": {

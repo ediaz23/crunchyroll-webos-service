@@ -28,8 +28,8 @@ gulp.task('logger', () =>
         .pipe(gulp.dest('dist/src'))
 )
 
-gulp.task('node-insta', (cb) => {
-    exec('npm install --prefix ./dist', (err, stdout, stderr) => {
+function nodeInstall(cb, extra) {
+    exec(`npm ci ${extra} --prefix ./dist`, (err, stdout, stderr) => {
         console.log(stdout)
         console.log(stderr)
         if (err) {
@@ -38,20 +38,12 @@ gulp.task('node-insta', (cb) => {
             del('dist/package-lock.json', { force: true }).then(() => cb()).catch(cb)
         }
     })
-})
-gulp.task('build', gulp.series('clean', 'misc', 'index', 'logger', 'node-insta'));
+}
 
-gulp.task('node-insta-p', (cb) => {
-    exec('npm ci --omit=dev --prefix ./dist', (err, stdout, stderr) => {
-        console.log(stdout)
-        console.log(stderr)
-        if (err) {
-            cb(err)
-        } else {
-            del('dist/package-lock.json', { force: true }).then(() => cb()).catch(cb)
-        }
-    })
-})
+gulp.task('node-insta', (cb) => { nodeInstall(cb, '') })
+gulp.task('node-insta-p', (cb) => { nodeInstall(cb, '--omit=dev') })
+
+gulp.task('build', gulp.series('clean', 'misc', 'index', 'logger', 'node-insta'));
 gulp.task('build-p', gulp.series('clean', 'misc', 'index', 'logger', 'node-insta-p'));
 
 module.exports = gulp

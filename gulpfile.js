@@ -14,18 +14,16 @@ gulp.task('misc', () =>
         .pipe(gulp.dest('dist'))
 )
 
-gulp.task('index', () =>
-    gulp.src('src/index.js')
-        .pipe(jshint())
-        .pipe(jshint.reporter('default'))
-        .pipe(gulp.dest('dist/src'))
-)
-
-gulp.task('logger', () =>
-    gulp.src('src/logger.js')
-        .pipe(jshint())
-        .pipe(jshint.reporter('default'))
-        .pipe(gulp.dest('dist/src'))
+gulp.task('build', (cb) =>
+    exec(`npx babel ./src --out-dir ./dist`, (err, stdout, stderr) => {
+        console.log(stdout)
+        console.log(stderr)
+        if (err) {
+            cb(err)
+        } else {
+            cb()
+        }
+    })
 )
 
 function nodeInstall(cb, extra) {
@@ -43,7 +41,7 @@ function nodeInstall(cb, extra) {
 gulp.task('node-insta', (cb) => { nodeInstall(cb, '') })
 gulp.task('node-insta-p', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-gulp.task('build', gulp.series('clean', 'misc', 'index', 'logger', 'node-insta'));
-gulp.task('build-p', gulp.series('clean', 'misc', 'index', 'logger', 'node-insta-p'));
+gulp.task('build', gulp.series('clean', 'misc', 'build', 'node-insta'));
+gulp.task('build-p', gulp.series('clean', 'misc', 'build', 'node-insta-p'));
 
 module.exports = gulp

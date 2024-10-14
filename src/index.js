@@ -1,5 +1,7 @@
 "use strict";
 /* jshint node: true */
+require('regenerator-runtime/runtime');
+require('core-js/stable');
 const fetch = require('node-fetch')
 const https = require('https')
 const http = require('http')

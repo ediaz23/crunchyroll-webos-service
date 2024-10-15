@@ -39,6 +39,9 @@ const errorHandler = (message, error, name) => {
     }
     message.respond(out)
     console.error(name, error)
+    if (message.isSubscription) {
+        message.cancel()
+    }
 }
 
 /**
@@ -96,6 +99,7 @@ const forwardRequest = async message => {
             body.body = Buffer.from(body.body, 'base64')
         }
         body.agent = url.startsWith('http://') ? agentHttp : agentHttps
+        body.timeout = body.timeout || 15000
         /** @type {import('node-fetch').Response}*/
         const res = await fetch(url, body)
         if (message.isSubscription) {
@@ -116,7 +120,11 @@ const forwardRequest = async message => {
 
             })
             await new Promise((resolve, reject) => {
-                res.body.on('close', () => {
+                const timeout = setTimeout(() => {
+                    reject(`Service manual timeout ${body.timeout} ${id}`)
+                }, body.timeout)
+                res.body.on('end', () => {
+                    clearTimeout(timeout)
                     if (error) {
                         reject(error)
                     } else {

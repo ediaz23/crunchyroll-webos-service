@@ -1,14 +1,14 @@
 {
     "name": "crunchyroll-webos-service",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "Service to forward requests in webos device",
     "main": "src/index.js",
     "scripts": {
         "play": "node index.js",
         "lint": "npx eslint --ext .js ./",
         "clean": "gulp clean",
-        "build": "gulp build",
-        "build-p": "gulp build-p",
+        "build": "NODE_ENV=development gulp build",
+        "build-p": "NODE_ENV=production gulp build-p",
         "test": "./test.sh"
     },
     "repository": {
@@ -36,13 +36,14 @@
     "devDependencies": {
         "del": "^4.1.1",
         "eslint": "^6.5.0",
-        "express": "^4.19.2",
+        "express": "^4.21.1",
         "gulp": "^4.0.2",
         "gulp-jshint": "^2.1.0",
         "gulp-shell": "^0.8.0",
         "jest": "^24.9.0",
         "jshint": "^2.13.5",
-        "webos-service": "git+https://github.com/webosose/nodejs-module-webos-service.git"
+        "webos-service": "git+https://github.com/webosose/nodejs-module-webos-service.git",
+        "webpack-conditional-loader": "^1.0.12"
     },
     "jest": {
         "testEnvironment": "node",

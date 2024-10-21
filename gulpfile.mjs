@@ -5,6 +5,7 @@ import { deleteAsync } from 'del';
 import { exec } from 'child_process';
 import { Transform } from 'stream';
 import conditionalLoader from 'webpack-conditional-loader';
+import terser from 'gulp-terser';
 
 
 function conditionalCompiler() {
@@ -29,12 +30,18 @@ task('misc', () =>
         .pipe(dest('dist'))
 )
 
-task('index', () =>
-    src('src/index.js')
-        .pipe(jshint())
-        .pipe(jshint.reporter('default'))
-        .pipe(conditionalCompiler())
-        .pipe(dest('dist/src'))
+task('index', () => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    let stream = src('src/index.js')
+    stream = stream.pipe(jshint())
+    stream = stream.pipe(jshint.reporter('default'))
+    stream = stream.pipe(conditionalCompiler())
+    if (isProduction) {
+        stream = stream.pipe(terser())
+    }
+    stream = stream.pipe(dest('dist/src'))
+    return stream
+}
 )
 
 function nodeInstall(cb, extra) {

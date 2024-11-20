@@ -4,6 +4,12 @@ const Buffer = require('../node_modules/buffer').Buffer
 const fetch = require('node-fetch')
 const https = require('https')
 const http = require('http')
+const util = require('util')
+const superIsBuffer = util.isBuffer
+
+util.isBuffer = function(obj) {
+    return superIsBuffer.apply(this, arguments) || Buffer.isBuffer(obj)
+}
 
 const log = (...args) => {
     // #if process.env.NODE_ENV === 'development'

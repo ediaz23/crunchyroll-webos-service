@@ -1,5 +1,6 @@
 "use strict";
 /* jshint node: true */
+const Buffer = require('../node_modules/buffer').Buffer
 const fetch = require('node-fetch')
 const https = require('https')
 const http = require('http')

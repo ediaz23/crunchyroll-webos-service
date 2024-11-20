@@ -27,7 +27,7 @@ task('clean', () =>
 )
 
 task('misc', () =>
-    src(['LICENSE', 'package.json', 'package-lock.json', 'services.json'])
+    src(['LICENSE', 'package.json', 'package-lock.json', 'services.json', 'patch-node-fetch.js'])
         .pipe(dest('dist'))
 )
 
@@ -46,18 +46,21 @@ task('index', () => {
     return stream
 })
 
-task('build-fetch', (cb) =>
-    exec(`npx babel dist/node_modules/node-fetch --out-dir dist/node_modules/node-fetch --extensions '.js,.jsx'`,
-        (err, stdout, stderr) => {
-            console.log(stdout)
-            console.log(stderr)
-            if (err) {
-                cb(err)
-            } else {
-                cb()
-            }
-        })
-)
+task('build-fetch', (cb) => {
+    const command = `
+        npx babel dist/node_modules/node-fetch --out-dir dist/node_modules/node-fetch --extensions ".js,.jsx" &&
+        npx babel dist/node_modules/buffer --out-dir dist/node_modules/buffer --extensions ".js,.jsx"
+    `;
+    exec(command, (err, stdout, stderr) => {
+        console.log(stdout)
+        console.log(stderr)
+        if (err) {
+            cb(err)
+        } else {
+            cb()
+        }
+    })
+})
 
 function nodeInstall(cb, extra) {
     exec(`npm ci ${extra} --prefix=./dist`, (err, stdout, stderr) => {
@@ -66,7 +69,8 @@ function nodeInstall(cb, extra) {
         if (err) {
             cb(err)
         } else {
-            deleteAsync('dist/package-lock.json', { force: true }).then(() => cb()).catch(cb)
+            deleteAsync(['dist/package-lock.json', 'dist/patch-node-fetch.js'], { force: true })
+                .then(() => cb()).catch(cb)
         }
     })
 }

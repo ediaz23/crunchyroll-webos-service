@@ -46,6 +46,19 @@ task('index', () => {
     return stream
 })
 
+task('build-fetch', (cb) =>
+    exec(`npx babel dist/node_modules/node-fetch --out-dir dist/node_modules/node-fetch --extensions '.js,.jsx'`,
+        (err, stdout, stderr) => {
+            console.log(stdout)
+            console.log(stderr)
+            if (err) {
+                cb(err)
+            } else {
+                cb()
+            }
+        })
+)
+
 function nodeInstall(cb, extra) {
     exec(`npm ci ${extra} --prefix=./dist`, (err, stdout, stderr) => {
         console.log(stdout)
@@ -61,7 +74,7 @@ function nodeInstall(cb, extra) {
 task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
 task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod'));
-task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod', 'build-fetch'));
+task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod', 'build-fetch'));
 
 export default gulp

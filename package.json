@@ -7,8 +7,8 @@
         "play": "node index.js",
         "lint": "npx eslint ./",
         "clean": "gulp clean",
-        "build": "NODE_ENV=development gulp build",
-        "build-p": "NODE_ENV=production gulp build-p",
+        "build": "NODE_ENV=development gulp build-dev",
+        "build-p": "NODE_ENV=production gulp build-prod",
         "test": "./test.sh"
     },
     "repository": {

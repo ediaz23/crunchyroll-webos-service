@@ -45,7 +45,7 @@ task('index', () => {
 )
 
 function nodeInstall(cb, extra) {
-    exec(`npm ci ${extra} --prefix ./dist`, (err, stdout, stderr) => {
+    exec(`npm ci ${extra} --prefix=./dist`, (err, stdout, stderr) => {
         console.log(stdout)
         console.log(stderr)
         if (err) {
@@ -56,10 +56,10 @@ function nodeInstall(cb, extra) {
     })
 }
 
-task('node-insta', (cb) => { nodeInstall(cb, '') })
-task('node-insta-p', (cb) => { nodeInstall(cb, '--omit=dev') })
+task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
+task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build', series('clean', 'misc', 'index', 'node-insta-p'));
-task('build-p', series('clean', 'misc', 'index', 'node-insta-p'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod'));
+task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod'));
 
 export default gulp

@@ -1,11 +1,12 @@
 
 import gulp, { task, src, dest, series } from 'gulp';
 import jshint from 'gulp-jshint';
+import terser from 'gulp-terser';
+import babel from 'gulp-babel';
 import { deleteAsync } from 'del';
 import { exec } from 'child_process';
 import { Transform } from 'stream';
 import conditionalLoader from 'webpack-conditional-loader';
-import terser from 'gulp-terser';
 
 
 function conditionalCompiler() {
@@ -36,13 +37,13 @@ task('index', () => {
     stream = stream.pipe(jshint())
     stream = stream.pipe(jshint.reporter('default'))
     stream = stream.pipe(conditionalCompiler())
+    stream = stream.pipe(babel())
     if (isProduction) {
         stream = stream.pipe(terser())
     }
     stream = stream.pipe(dest('dist/src'))
     return stream
-}
-)
+})
 
 function nodeInstall(cb, extra) {
     exec(`npm ci ${extra} --prefix=./dist`, (err, stdout, stderr) => {
@@ -59,7 +60,7 @@ function nodeInstall(cb, extra) {
 task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
 task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-dev'));
 task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod'));
 
 export default gulp

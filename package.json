@@ -31,6 +31,7 @@
     "homepage": "https://github.com/ediaz23/crunchyroll-webos-service#readme",
     "dependencies": {
         "encoding": "^0.1.13",
+        "gulp-babel": "^8.0.0",
         "node-fetch": "^2.6.7"
     },
     "devDependencies": {

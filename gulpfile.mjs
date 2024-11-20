@@ -22,9 +22,9 @@ function conditionalCompiler() {
     });
 }
 
-task('clean', function() {
-    return deleteAsync('dist/**', { force: true });
-})
+task('clean', () =>
+    deleteAsync('dist/**', { force: true })
+)
 
 task('misc', () =>
     src(['LICENSE', 'package.json', 'package-lock.json', 'services.json'])
@@ -34,6 +34,7 @@ task('misc', () =>
 task('index', () => {
     const isProduction = process.env.NODE_ENV === 'production';
     let stream = src('src/index.js')
+
     stream = stream.pipe(jshint())
     stream = stream.pipe(jshint.reporter('default'))
     stream = stream.pipe(conditionalCompiler())
@@ -60,7 +61,7 @@ function nodeInstall(cb, extra) {
 task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
 task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build-dev', series('clean', 'misc', 'index', 'node-insta-dev'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod'));
 task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod'));
 
 export default gulp

@@ -1,11 +1,11 @@
 
 import gulp, { task, src, dest, series } from 'gulp';
 import jshint from 'gulp-jshint';
+import terser from 'gulp-terser';
 import { deleteAsync } from 'del';
 import { exec } from 'child_process';
 import { Transform } from 'stream';
 import conditionalLoader from 'webpack-conditional-loader';
-import terser from 'gulp-terser';
 
 
 function conditionalCompiler() {
@@ -21,9 +21,9 @@ function conditionalCompiler() {
     });
 }
 
-task('clean', function() {
-    return deleteAsync('dist/**', { force: true });
-})
+task('clean', () =>
+    deleteAsync('dist/**', { force: true })
+)
 
 task('misc', () =>
     src(['LICENSE', 'package.json', 'package-lock.json', 'services.json'])
@@ -33,6 +33,7 @@ task('misc', () =>
 task('index', () => {
     const isProduction = process.env.NODE_ENV === 'production';
     let stream = src('src/index.js')
+
     stream = stream.pipe(jshint())
     stream = stream.pipe(jshint.reporter('default'))
     stream = stream.pipe(conditionalCompiler())
@@ -41,11 +42,10 @@ task('index', () => {
     }
     stream = stream.pipe(dest('dist/src'))
     return stream
-}
-)
+})
 
 function nodeInstall(cb, extra) {
-    exec(`npm ci ${extra} --prefix ./dist`, (err, stdout, stderr) => {
+    exec(`npm ci ${extra} --prefix=./dist`, (err, stdout, stderr) => {
         console.log(stdout)
         console.log(stderr)
         if (err) {
@@ -56,10 +56,10 @@ function nodeInstall(cb, extra) {
     })
 }
 
-task('node-insta', (cb) => { nodeInstall(cb, '') })
-task('node-insta-p', (cb) => { nodeInstall(cb, '--omit=dev') })
+task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
+task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build', series('clean', 'misc', 'index', 'node-insta-p'));
-task('build-p', series('clean', 'misc', 'index', 'node-insta-p'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod'));
+task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod'));
 
 export default gulp

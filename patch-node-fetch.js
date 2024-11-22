@@ -29,12 +29,6 @@ function patchNodeFetch() {
             }`;
             }
         );
-        content = content.replace(
-            "var zlib = _interopDefault(require('zlib'));",
-            `
-      var zlib = _interopDefault(require('zlib'));
-      var Buffer = require('../../buffer').Buffer;`)
-
         fs.writeFileSync(filePath, content, 'utf8');
         console.log('node-fetch patched.')
     } catch (error) {
@@ -42,32 +36,6 @@ function patchNodeFetch() {
     }
 }
 
-function patchNodeBuffer() {
-    const filePath = path.resolve(
-        __dirname,
-        'node_modules/buffer/index.js'
-    );
-
-    try {
-        let content = fs.readFileSync(filePath, 'utf8');
-
-        content = content.replace(
-            /Buffer\.concat\s*=\s*function\s*concat\s*\(list,\s*length\)\s*{[\s\S]*?^\}\n/m,
-            (match, classBody) => match.replace('let i', `  let i
-  for (i = 0; i < list.length; ++ i) {
-      if (global.Buffer.isBuffer(list[i])) {
-          list[i] = Buffer.from(list[i]);
-      }
-  }`)
-        )
-        fs.writeFileSync(filePath, content, 'utf8');
-        console.log('node-fetch buffer.')
-    } catch (error) {
-        console.error('Error patching buffer:', error);
-    }
-}
-
 if (__dirname.endsWith('dist')) {
     patchNodeFetch()
-    patchNodeBuffer()
 }

@@ -4,6 +4,7 @@ const app = express()
 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use((req, res, next) => {
+    console.log(req.method, req.path)
     const contentType = req.headers['content-type']
 
     if (contentType === 'text/plain') {
@@ -89,5 +90,9 @@ app.delete('/stream', stream)
 app.post('/stream', stream)
 app.put('/stream', stream)
 app.patch('/stream', stream)
+
+app.listen(3000, () => {
+    console.log('Test server running on port 3000')
+})
 
 module.exports = app

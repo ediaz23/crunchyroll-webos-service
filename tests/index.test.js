@@ -1,6 +1,8 @@
 
-const { webosService } = require('./index')
-const app = require('./index.server')
+require('core-js/stable/array/index')
+var util = require('util');
+var assert = require('assert');
+var mainCode = require('../dist/src/index');
 
 /** 
  * @typedef ServiceResponse
@@ -25,105 +27,221 @@ const app = require('./index.server')
  * @property {Number} id
  */
 
-const url_base = 'http://localhost:3000'
-let server
+var url_base = 'http://localhost:3000'
 
-beforeAll((done) => {
-    server = app.listen(3000, () => {
-        console.log('Test server running on port 3000')
-        done()
-    })
-})
+var testQueue = [];
+var isRunning = false;
 
-afterAll((done) => {
-    server.close(() => {
-        console.log('Test server closed')
-        done()
-    })
-})
+function isPromise(obj) {
+    return obj && typeof obj.then === 'function';
+}
+
+function xtest() { }
+
+function test(description, fn) {
+    testQueue.push({ description: description, fn: fn });
+    if (!isRunning) {
+        runNextTest();
+    }
+}
+
+function runNextTest() {
+    if (testQueue.length === 0) {
+        isRunning = false;
+        return;
+    }
+
+    isRunning = true;
+    var el = testQueue.shift();
+    var description = el.description, fn = el.fn
+
+    function onError(err) {
+        console.error('  **FAILED:', description);
+        console.error('    ', err.message);
+        if (err.stack) {
+            console.log(err.stack);
+        }
+        console.log('END', description, '\n');
+        runNextTest();
+    }
+
+    function onSuccess() {
+        console.log('  PASSED:', description);
+        console.log('END', description, '\n');
+        runNextTest();
+    }
+
+    console.log('INIT', description);
+
+    try {
+        /** @type {Promise} */
+        var result = fn();
+
+        if (isPromise(result)) {
+            result.then(onSuccess, onError)
+        } else {
+            onSuccess()
+        }
+    } catch (err) {
+        onError(err)
+    }
+}
+
+function expect(value) {
+    return {
+        toBeDefined: function() {
+            assert.ok(value !== undefined && value !== null, 'Expected value to be defined but it was undefined or null');
+        },
+        toBe: function(expected) {
+            assert.strictEqual(value, expected, 'Expected ' + value + ' to be ' + expected);
+        },
+        toEqual: function(expected) {
+            assert.strictEqual(value, expected, 'Expected ' + value + ' to be ' + expected);
+        }
+    };
+}
 
 
 /**
  * @param {ServiceBody} body
  * @returns {Promise<ServiceResponse>}
  */
-const makeRequest = async (body) => {
-    return new Promise((res) => {
-        let data = {}
+
+function makeRequest(body) {
+    return new Promise(function(res, rej) {
+        var data = {}, waiting = true
         if (body.id) {
             data[body.id] = []
         }
-        const message = {
-            respond: response => {
-                if (body.id) {
-                    data[body.id].push(response.content)
-                    if (response.total === response.loaded) {
-                        response.content = data[body.id]
-                        delete data[body.id]
-                        res(response)
+        var message = {
+            respond: function(response) {
+                if (waiting) {
+                    if (body.id) {
+                        data[body.id].push(response.content)
+                        if (response.total === response.loaded) {
+                            waiting = false
+                            response.content = data[body.id]
+                            delete data[body.id]
+                            res(response)
+                        }
+                    } else {
+                        waiting = false
+                        if (response.returnValue === false) {
+                            rej(response)
+                        } else {
+                            res(response)
+                        }
                     }
-                } else {
-                    res(response)
                 }
             },
             payload: body || {},
             id: body.id,
             isSubscription: body.isSubscription,
+            uniqueToken: 'j' + Math.floor(1000 + Math.random() * 9000),
         }
-        webosService['forwardRequest0'](message)
-    })
-}
-
-describe('Test request script', () => {
-    describe.each([200])('status %s', status => {
-        describe.each(['get', 'delete', 'post', 'put', 'patch'])('method %s', method => {
-            test('simple', async () => {
-                const body = 'simple-' + method
-                const url = `${url_base}/simple?status=${status}&body=${body}`
-                const headers = { 'Content-Type': 'text/plain' }
-                const responses = await makeRequest({ url, method, headers })
-                expect(responses.status).toBe(status)
-                expect(responses.content).toBeDefined()
-                const decodedString = Buffer.from(responses.content, 'base64').toString('utf-8')
-                expect(decodedString).toBe(body)
-            })
-            test('stream', async () => {
-                const body = 'stream-' + method
-                const url = `${url_base}/stream?status=${status}&body=${body}`
-                const headers = { 'Content-Type': 'text/plain' }
-                const id = method
-                const responses = await makeRequest({ url, method, headers, id, isSubscription: true })
-                expect(responses.status).toBe(status)
-                expect(responses.id).toEqual(id)
-                expect(responses.content).toBeDefined()
-                expect(Array.isArray(responses.content)).toBe(true)
-                const decodedString = responses.content.map(c => Buffer.from(c, 'base64').toString('utf-8')).join('')
-                expect(decodedString).toBe(body)
-            })
-            if (['post', 'put', 'patch'].includes(method)) {
-                test('body-json', async () => {
-                    const data = { body: 'testing' }
-                    const body = JSON.stringify(data)
-                    const url = `${url_base}/body?status=${status}`
-                    const headers = { 'Content-Type': 'application/json' }
-                    const responses = await makeRequest({ url, method, body, headers })
-                    expect(responses.status).toBe(status)
-                    expect(responses.content).toBeDefined()
-                    const decodedString = Buffer.from(responses.content, 'base64').toString('utf-8')
-                    expect(decodedString).toBe(body)
-                })
-                test('body-base64', async () => {
-                    const data = JSON.stringify({ body: 'testing' })
-                    const body = Buffer.from(data).toString('base64')
-                    const url = `${url_base}/raw?status=${status}`
-                    const headers = { 'Content-Type': 'application/octet-stream' }
-                    const responses = await makeRequest({ url, method, body, headers })
-                    expect(responses.status).toBe(status)
-                    expect(responses.content).toBeDefined()
-                    const decodedString = Buffer.from(responses.content, 'base64').toString('utf-8')
-                    expect(decodedString).toBe(data)
-                })
+        /** @type {Promise} */
+        var prom = mainCode.webosService['forwardRequest0'](message)
+        prom.catch(function(err) {
+            if (waiting) {
+                waiting = false
+                rej(err)
             }
         })
     })
-})
+}
+function runTest() {
+    [200].forEach(function(status) {
+        ['get', 'delete', 'post', 'put', 'patch'].forEach(function(method) {
+            test(util.format('Simple %s %s', method, status), function() {
+                var body = 'simple-' + method;
+                return makeRequest({
+                    url: util.format('%s/simple?status=%s&body=%s', url_base, status, body),
+                    method: method,
+                    headers: { 'Content-Type': 'text/plain' },
+                }).then(function(responses) {
+                    expect(responses.status).toBe(status);
+                    expect(responses.content).toBeDefined();
+                    const decodedString = Buffer.from(responses.content, 'base64').toString('utf-8');
+                    expect(decodedString).toBe(body);
+                })
+            });
+
+            test(util.format('Stream %s %s', method, status), function() {
+                var body = 'stream-' + method;
+                var id = 'k' + Math.floor(1000 + Math.random() * 9000);  // k is any letter
+                return makeRequest({
+                    url: util.format('%s/stream?status=%s&body=%s', url_base, status, body),
+                    method: method,
+                    headers: { 'Content-Type': 'text/plain' },
+                    id: id,
+                    isSubscription: true,
+                }).then(function(responses) {
+                    expect(responses.status).toBe(status);
+                    expect(responses.id).toEqual(id);
+                    expect(responses.content).toBeDefined();
+                    expect(Array.isArray(responses.content)).toBe(true);
+                    var decodedString = responses.content.map(function(c) {
+                        return Buffer.from(c, 'base64').toString('utf-8');
+                    }).join('');
+                    expect(decodedString).toBe(body);
+                })
+            });
+
+            if (['post', 'put', 'patch'].includes(method)) {
+                test(util.format('body-json %s %s', method, status), function() {
+                    var data = { body: 'testing' };
+                    var body = JSON.stringify(data);
+                    return makeRequest({
+                        url: util.format('%s/body?status=%s', url_base, status),
+                        method: method,
+                        body: body,
+                        headers: { 'Content-Type': 'application/json' },
+                    }).then(function(responses) {
+                        expect(responses.status).toBe(status);
+                        expect(responses.content).toBeDefined();
+                        var decodedString = Buffer.from(responses.content, 'base64').toString('utf-8');
+                        expect(decodedString).toBe(body);
+                    })
+                });
+
+                test(util.format('body-base64 %s %s', method, status), function() {
+                    var data = JSON.stringify({ body: 'testing' });
+                    return makeRequest({
+                        url: util.format('%s/raw?status=%s', url_base, status),
+                        method: method,
+                        body: Buffer.from(data).toString('base64'),
+                        headers: { 'Content-Type': 'application/octet-stream' },
+                    }).then(function(responses) {
+                        expect(responses.status).toBe(status);
+                        expect(responses.content).toBeDefined();
+                        var decodedString = Buffer.from(responses.content, 'base64').toString('utf-8');
+                        expect(decodedString).toBe(data);
+                    })
+                });
+            }
+        });
+    });
+    return new Promise(function(resolve) {
+        function checkQueue() {
+            if (testQueue.length === 0 && !isRunning) {
+                resolve();
+            } else {
+                setTimeout(checkQueue, 500);
+            }
+        }
+        checkQueue();
+    });
+}
+
+process.on('uncaughtException', function(err) {
+    console.error('Excepción no capturada: ', err);
+    console.error(err.stack || 'No hay stack disponible');
+    process.exit(1);
+});
+
+process.on('unhandledRejection', function(reason, promise) {
+    console.error('Rechazo de promesa no manejado:', reason);
+    process.exit(1);
+});
+
+setTimeout(runTest, 0)

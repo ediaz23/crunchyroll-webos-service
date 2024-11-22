@@ -1,15 +1,20 @@
 "use strict";
 /* jshint node: true */
-const Buffer = require('../node_modules/buffer').Buffer
 const fetch = require('node-fetch')
 const https = require('https')
 const http = require('http')
-const util = require('util')
-const superIsBuffer = util.isBuffer
+Buffer.from = require('buffer-from')
 
-util.isBuffer = function(obj) {
-    return superIsBuffer.apply(this, arguments) || Buffer.isBuffer(obj)
-}
+Object.defineProperty(Buffer.prototype, 'buffer', {
+    get: function() {
+        const arrayBuffer = new ArrayBuffer(this.length);
+        new Uint8Array(arrayBuffer).set(this);
+        return arrayBuffer;
+    },
+});
+
+Object.defineProperty(Buffer.prototype, 'byteOffset', { get: function() { return 0; } });
+Object.defineProperty(Buffer.prototype, 'byteLength', { get: function get() { return this.length; } });
 
 const log = (...args) => {
     // #if process.env.NODE_ENV === 'development'

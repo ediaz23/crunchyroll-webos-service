@@ -48,8 +48,7 @@ task('index', () => {
 
 task('build-fetch', (cb) => {
     const command = `
-        npx babel dist/node_modules/node-fetch --out-dir dist/node_modules/node-fetch --extensions ".js,.jsx" &&
-        npx babel dist/node_modules/buffer --out-dir dist/node_modules/buffer --extensions ".js,.jsx"
+        npx babel dist/node_modules/node-fetch --out-dir dist/node_modules/node-fetch --extensions ".js,.jsx"
     `;
     exec(command, (err, stdout, stderr) => {
         console.log(stdout)

@@ -1,6 +1,6 @@
 {
     "name": "crunchyroll-webos-service",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "Service to forward requests in webos device",
     "main": "src/index.js",
     "scripts": {

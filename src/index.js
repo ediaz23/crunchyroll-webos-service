@@ -3,6 +3,7 @@
 const fetch = require('node-fetch')
 const https = require('https')
 const http = require('http')
+const zlib = require('zlib')
 Buffer.from = require('buffer-from')
 
 Object.defineProperty(Buffer.prototype, 'buffer', {
@@ -95,11 +96,20 @@ function fromEntries(headers) {
  * @param {import('node-fetch').Response} res
  * @param {ArrayBuffer} data
  * @param {String} log_name
+ * @param {Boolean} compress
  * @param {Object} extra
  * @returns {Object}
  */
-function makeResponse(res, data, log_name, extra) {
-    const content = Buffer.from(data).toString('base64')
+function makeResponse(res, data, log_name, compress, extra) {
+    let content = null
+    if (data.byteLength) {
+        const buf = Buffer.from(data)
+        if (compress) {
+            content = zlib.gzipSync(buf).toString('base64')
+        } else {
+            content = buf.toString('base64')
+        }
+    }
     const headers = fromEntries(res.headers)
     log('res ', log_name, res.status, extra)
     return {
@@ -108,6 +118,7 @@ function makeResponse(res, data, log_name, extra) {
         headers: headers,
         content,
         resUrl: res.url,
+        compress,
         ...extra
     }
 }
@@ -120,13 +131,14 @@ const agentHttp = new http.Agent({ rejectUnauthorized: false })
  * @returns {Promise}
  */
 const forwardRequest = async message => {
+    const payload = JSON.parse(zlib.gunzipSync(Buffer.from(message.payload.d, 'base64')).toString('utf-8'))
     /** @type {{url: String}} */
-    const { url } = message.payload
-    delete message.payload.url
+    const { url } = payload
+    delete payload.url
     /** @type {import('node-fetch').RequestInit}*/
-    const body = message.payload
+    const body = payload
     const url_log = url.padEnd(200, ' ').substring(0, 200) + '.'
-    const log_name = `${body.method || 'GET'} ${url_log} ${message.payload.id || ''}`.trim()
+    const log_name = `${body.method || 'GET'} ${url_log} ${payload.id || ''}`.trim()
     try {
         log('init', log_name)
         if (body.headers && body.headers['Content-Type'] === 'application/octet-stream' && body.body) {
@@ -139,7 +151,7 @@ const forwardRequest = async message => {
         if (message.isSubscription) {
             subscriptions[message.uniqueToken] = message
             const total = parseInt(res.headers.get('content-length'))
-            const id = message.payload.id
+            const id = payload.id
 
             let loaded = 0
             let error
@@ -148,7 +160,7 @@ const forwardRequest = async message => {
                 if (subscriptions[message.uniqueToken]) {
                     loaded += value.length
                     if (loaded === value.length) {
-                        message.respond(makeResponse(res, value, log_name, { id, loaded, total }))
+                        message.respond(makeResponse(res, value, log_name, false, { id, loaded, total }))
                     } else {
                         const content = Buffer.from(value).toString('base64')
                         log('resT', log_name, res.status)
@@ -172,7 +184,7 @@ const forwardRequest = async message => {
             })
         } else {
             const data = await res.arrayBuffer()
-            message.respond(makeResponse(res, data, log_name, {}))
+            message.respond(makeResponse(res, data, log_name, true, {}))
         }
     } catch (error) {
         errorHandler(message, error, log_name)

@@ -49,13 +49,20 @@ try {
  * @param {String} name
  */
 const errorHandler = (message, error, name) => {
-    let out = { returnValue: false }
+    let out = { returnValue: false, retry: false }
+
     if (message.isSubscription) {
         out.id = message.payload.id
     }
     if (error instanceof Error) {
         out.error = `${error.name} - ${error.message}`
         out.stack = error.stack
+        out.retry = (
+            error.type === 'request-timeout' ||
+            error.name === 'AbortError' ||
+            error.type === 'system' ||
+            error.type === 'network'
+        )
     } else {
         out.error = JSON.stringify(error)
     }

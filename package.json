@@ -30,6 +30,7 @@
     },
     "homepage": "https://github.com/ediaz23/crunchyroll-webos-service#readme",
     "dependencies": {
+        "abort-controller": "^3.0.0",
         "encoding": "^0.1.13",
         "node-fetch": "2.6.7"
     },

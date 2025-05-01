@@ -38,7 +38,18 @@ task('index', () => {
     stream = stream.pipe(jshint.reporter('default'))
     stream = stream.pipe(conditionalCompiler())
     if (isProduction) {
-        stream = stream.pipe(terser())
+        stream = stream.pipe(terser({
+            compress: {
+                pure_getters: true,
+                unsafe: true,
+                unsafe_comps: true,
+                toplevel: true
+            },
+            mangle: {
+                toplevel: true
+            },
+            ecma: 8,
+        }))
     }
     stream = stream.pipe(dest('dist/src'))
     return stream

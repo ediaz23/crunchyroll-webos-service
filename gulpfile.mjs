@@ -22,6 +22,23 @@ function conditionalCompiler() {
     });
 }
 
+async function buildLib(lib) {
+    const command = `
+        npx babel dist/node_modules/${lib} --out-dir dist/node_modules/${lib} --extensions ".js,.jsx"
+    `;
+    return new Promise((res, rej) => {
+        exec(command, (err, stdout, stderr) => {
+            console.log(stdout)
+            console.log(stderr)
+            if (err) {
+                rej(err)
+            } else {
+                res()
+            }
+        })
+    })
+}
+
 task('clean', () =>
     deleteAsync('dist/**', { force: true })
 )
@@ -40,25 +57,22 @@ task('index', () => {
     stream = stream.pipe(conditionalCompiler())
     stream = stream.pipe(babel())
     if (isProduction) {
-        stream = stream.pipe(terser())
+        stream = stream.pipe(terser({
+            compress: {
+                ecma: 5,
+                pure_getters: true,
+                unsafe: true,
+                unsafe_comps: true,
+                toplevel: true
+            },
+            mangle: {
+                toplevel: true
+            },
+            ecma: 5
+        }))
     }
     stream = stream.pipe(dest('dist/src'))
     return stream
-})
-
-task('build-fetch', (cb) => {
-    const command = `
-        npx babel dist/node_modules/node-fetch --out-dir dist/node_modules/node-fetch --extensions ".js,.jsx"
-    `;
-    exec(command, (err, stdout, stderr) => {
-        console.log(stdout)
-        console.log(stderr)
-        if (err) {
-            cb(err)
-        } else {
-            cb()
-        }
-    })
 })
 
 function nodeInstall(cb, extra) {
@@ -74,10 +88,18 @@ function nodeInstall(cb, extra) {
     })
 }
 
+task('build-libs', (cb) => {
+    Promise.all([
+        buildLib('node-fetch'),
+        buildLib('abort-controller'),
+        buildLib('event-target-shim'),
+    ]).then(() => cb()).catch(cb)
+})
+
 task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
 task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod', 'build-fetch'));
-task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod', 'build-fetch'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod', 'build-libs'));
+task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod', 'build-libs'));
 
 export default gulp

@@ -1,6 +1,7 @@
 "use strict";
 /* jshint node: true */
 const fetch = require('node-fetch')
+const AbortController = require('abort-controller')
 const https = require('https')
 const http = require('http')
 const zlib = require('zlib')
@@ -40,7 +41,11 @@ const log = (...args) => {
 
 /** @type {import('webos-service').default} */
 let service = null
-let subscriptions = {}
+/** @type {Map<String, {
+    message: import('webos-service').Message,
+    controller: import('abort-controller').AbortController
+}>} */
+const subscriptions = new Map();
 
 try {
     const SERVICE_NAME = 'com.crunchyroll.stream.app.service'
@@ -58,9 +63,8 @@ try {
 /**
  * @param {import('webos-service').Message} message
  * @param {Error} error
- * @param {String} name
  */
-const errorHandler = (message, error, name) => {
+const errorHandler = (message, error) => {
     let out = { returnValue: false, retry: false }
 
     if (message.isSubscription) {
@@ -79,7 +83,6 @@ const errorHandler = (message, error, name) => {
         out.error = JSON.stringify(error)
     }
     message.respond(out)
-    console.error('error', name, error)
     if (message.isSubscription) {
         message.cancel()
     }
@@ -146,6 +149,8 @@ const forwardRequest = async message => {
     const body = payload
     const url_log = url.padEnd(200, ' ').substring(0, 200) + '.'
     const log_name = `${body.method || 'GET'} ${url_log} ${payload.id || ''}`.trim()
+    /** @type {import('abort-controller').AbortController} */
+    const controller = new AbortController()
     try {
         log('init', log_name)
         if (body.headers && body.headers['Content-Type'] === 'application/octet-stream' && body.body) {
@@ -153,10 +158,12 @@ const forwardRequest = async message => {
         }
         body.agent = url.startsWith('http://') ? agentHttp : agentHttps
         body.timeout = body.timeout || 20000
+        body.signal = controller.signal
+
         /** @type {import('node-fetch').Response}*/
         const res = await fetch(url, body)
         if (message.isSubscription) {
-            subscriptions[message.uniqueToken] = message
+            subscriptions.set(message.uniqueToken, { message, controller })
             const total = parseInt(res.headers.get('content-length'))
             const id = payload.id
 
@@ -164,7 +171,7 @@ const forwardRequest = async message => {
             let error
             res.body.on('error', err => { error = err })
             res.body.on('data', value => {
-                if (subscriptions[message.uniqueToken]) {
+                if (subscriptions.get(message.uniqueToken)) {
                     loaded += value.length
                     if (loaded === value.length) {
                         message.respond(makeResponse(res, value, log_name, false, { id, loaded, total }))
@@ -194,9 +201,12 @@ const forwardRequest = async message => {
             message.respond(makeResponse(res, data, log_name, true, {}))
         }
     } catch (error) {
-        errorHandler(message, error, log_name)
+        console.error('error', log_name, error)
+        if (!message.isSubscription || subscriptions.get(message.uniqueToken)) {
+            errorHandler(message, error)
+        }
     } finally {
-        delete subscriptions[message.uniqueToken]
+        subscriptions.delete(message.uniqueToken)
     }
 }
 
@@ -205,10 +215,14 @@ const forwardRequest = async message => {
  * @returns {Promise}
  */
 const cancelForwardRequest = message => {
-    delete subscriptions[message.uniqueToken]
+    const el = subscriptions.get(message.uniqueToken)
+    if (el) {
+        subscriptions.delete(message.uniqueToken)
+        el.controller.abort()
+    }
 }
 
-const CONCURRENT_REQ_LIMIT = 8
+const CONCURRENT_REQ_LIMIT = 10
 
 for (let concurrent = 0; concurrent < CONCURRENT_REQ_LIMIT; concurrent++) {
     service.register(`forwardRequest${concurrent}`, forwardRequest, cancelForwardRequest)

@@ -169,28 +169,17 @@ const agentHttp = new http.Agent({ rejectUnauthorized: false })
  * @returns {Promise}
  */
 const forwardRequest = async message => {
-    const payload = JSON.parse(zlib.gunzipSync(Buffer.from(message.payload.d, 'base64')).toString('utf-8'))
-    /** @type {{url: string}} */
-    const { url } = payload
-    delete payload.url
     /** @type {import('node-fetch').RequestInit}*/
-    const body = payload
+    const body = JSON.parse(zlib.gunzipSync(Buffer.from(message.payload.d, 'base64')).toString('utf-8'))
+    /** @type {{url: string}} */
+    const { url } = body
     const url_log = url.padEnd(200, ' ').substring(0, 200) + '.'
-    const log_name = `${body.method || 'GET'} ${url_log} ${payload.id || ''}`.trim()
+    const log_name = `${body.method || 'GET'} ${url_log} ${body.id || ''}`.trim()
     /** @type {import('abort-controller').AbortController} */
     const controller = new AbortController()
-    /** @type {import('node-fetch').Response}*/
-    let res = {}
     let timeout = null
-    /** @type {Function} */
-    let resolver
-    /** @type {Function} */
-    let rejecter
     const prom = new Promise((resolve, reject) => {
-        resolver = resolve
-        rejecter = reject
-    })
-    try {
+        delete body.url
         log('init', log_name)
         if (body.headers && body.headers['Content-Type'] === 'application/octet-stream' && body.body) {
             body.body = Buffer.from(body.body, 'base64')
@@ -199,24 +188,17 @@ const forwardRequest = async message => {
         body.timeout = body.timeout || 20000
         body.signal = controller.signal
         timeout = setTimeout(() => controller.abort(), body.timeout)
-
-        /** @type {import('node-fetch').Response}*/
-        res = await fetch(url, body)
-        if (message.isSubscription) {
-            asyncRequest({ message, res, id: payload.id, controller, log_name }).then(resolver).catch(rejecter)
-        } else {
-            const data = await res.arrayBuffer()
-            message.respond(makeResponse(res, data, log_name, true, {}))
-            resolver()
-        }
-    } catch (error) {
-        rejecter(error)
-    }
-    prom.then(() => {
-        log('end ', log_name, res.status, 'okey')
+        fetch(url, body).then(res => {
+            log('res ', log_name, res.status)
+            return message.isSubscription
+                ? asyncRequest({ message, res, id: body.id, controller, log_name })
+                : res.arrayBuffer().then(data => message.respond(makeResponse(res, data, log_name, true, {})))
+        }).then(resolve).catch(reject)
+    }).then(() => {
+        log('end ', log_name, 'okey')
     }).catch(error => {
         console.error('error', log_name, error)
-        log('end ', log_name, res.status, 'error')
+        log('end ', log_name, 'error')
         errorHandler(message, error)
     }).finally(() => {
         clearTimeout(timeout)

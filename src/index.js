@@ -113,7 +113,7 @@ function fromEntries(headers) {
 function makeResponse(res, data, log_name, compress, extra) {
     let content = null
     if (data.byteLength) {
-        const buf = Buffer.from(data)
+        const buf = Buffer.isBuffer(data) ? data : Buffer.from(data)
         if (compress) {
             content = zlib.gzipSync(buf).toString('base64')
         } else {
@@ -133,6 +133,46 @@ function makeResponse(res, data, log_name, compress, extra) {
     }
 }
 
+/**
+ * @param {Object} obj
+ * @param {import('webos-service').Message} obj.message
+ * @param {import('node-fetch').Response} obj.res
+ * @param {string} obj.id
+ * @param {import('abort-controller').AbortController} obj.controller
+ * @param {string} obj.log_name
+ * @return {Promise}
+ */
+async function asyncRequest({ message, res, id, controller, log_name }) {
+    subscriptions.set(message.uniqueToken, { message, controller })
+    const total = parseInt(res.headers.get('content-length'))
+
+    let loaded = 0
+    res.body.on('data', value => {
+        if (subscriptions.get(message.uniqueToken)) {
+            loaded += value.length
+            if (loaded === value.length) {
+                message.respond(makeResponse(res, value, log_name, false, { id, loaded, total }))
+            } else {
+                const content = Buffer.from(value).toString('base64')
+                log('resT', log_name, res.status)
+                message.respond({ id, loaded, total, content, status: res.status })
+            }
+        }
+    })
+
+    return new Promise((resolve, reject) => {
+        res.body.on('end', () => {
+            subscriptions.delete(message.uniqueToken)
+            resolve()
+        })
+
+        res.body.on('error', (error) => {
+            subscriptions.delete(message.uniqueToken)
+            reject(error)
+        })
+    })
+}
+
 const agentHttps = new https.Agent({ rejectUnauthorized: false })
 const agentHttp = new http.Agent({ rejectUnauthorized: false })
 
@@ -141,17 +181,17 @@ const agentHttp = new http.Agent({ rejectUnauthorized: false })
  * @returns {Promise}
  */
 const forwardRequest = async message => {
-    const payload = JSON.parse(zlib.gunzipSync(Buffer.from(message.payload.d, 'base64')).toString('utf-8'))
-    /** @type {{url: String}} */
-    const { url } = payload
-    delete payload.url
     /** @type {import('node-fetch').RequestInit}*/
-    const body = payload
+    const body = JSON.parse(zlib.gunzipSync(Buffer.from(message.payload.d, 'base64')).toString('utf-8'))
+    /** @type {{url: string}} */
+    const { url } = body
     const url_log = url.padEnd(200, ' ').substring(0, 200) + '.'
-    const log_name = `${body.method || 'GET'} ${url_log} ${payload.id || ''}`.trim()
+    const log_name = `${body.method || 'GET'} ${url_log} ${body.id || ''}`.trim()
     /** @type {import('abort-controller').AbortController} */
     const controller = new AbortController()
-    try {
+    let timeout = null
+    const prom = new Promise((resolve, reject) => {
+        delete body.url
         log('init', log_name)
         if (body.headers && body.headers['Content-Type'] === 'application/octet-stream' && body.body) {
             body.body = Buffer.from(body.body, 'base64')
@@ -159,54 +199,24 @@ const forwardRequest = async message => {
         body.agent = url.startsWith('http://') ? agentHttp : agentHttps
         body.timeout = body.timeout || 20000
         body.signal = controller.signal
-
-        /** @type {import('node-fetch').Response}*/
-        const res = await fetch(url, body)
-        if (message.isSubscription) {
-            subscriptions.set(message.uniqueToken, { message, controller })
-            const total = parseInt(res.headers.get('content-length'))
-            const id = payload.id
-
-            let loaded = 0
-            let error
-            res.body.on('error', err => { error = err })
-            res.body.on('data', value => {
-                if (subscriptions.get(message.uniqueToken)) {
-                    loaded += value.length
-                    if (loaded === value.length) {
-                        message.respond(makeResponse(res, value, log_name, false, { id, loaded, total }))
-                    } else {
-                        const content = Buffer.from(value).toString('base64')
-                        log('resT', log_name, res.status)
-                        message.respond({ id, loaded, total, content, status: res.status })
-                    }
-                }
-            })
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(`${log_name} timeout ${body.timeout}`)
-                }, body.timeout)
-                res.body.on('end', () => {
-                    clearTimeout(timeout)
-                    log('end ', log_name, res.status, error ? 'error' : 'okey')
-                    if (error) {
-                        reject(error)
-                    } else {
-                        resolve()
-                    }
-                })
-            })
-        } else {
-            const data = await res.arrayBuffer()
-            message.respond(makeResponse(res, data, log_name, true, {}))
-        }
-    } catch (error) {
+        timeout = setTimeout(() => controller.abort(), body.timeout)
+        fetch(url, body).then(res => {
+            log('res ', log_name, res.status)
+            return message.isSubscription
+                ? asyncRequest({ message, res, id: body.id, controller, log_name })
+                : res.arrayBuffer().then(data => message.respond(makeResponse(res, data, log_name, true, {})))
+        }).then(resolve).catch(reject)
+    }).then(() => {
+        log('end ', log_name, 'okey')
+    }).catch(error => {
         console.error('error', log_name, error)
-        if (!message.isSubscription || subscriptions.get(message.uniqueToken)) {
-            errorHandler(message, error)
-        }
-    } finally {
-        subscriptions.delete(message.uniqueToken)
+        log('end ', log_name, 'error')
+        errorHandler(message, error)
+    }).finally(() => {
+        clearTimeout(timeout)
+    })
+    if (!message.isSubscription) {
+        await prom
     }
 }
 

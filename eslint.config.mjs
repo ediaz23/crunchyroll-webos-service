@@ -19,7 +19,6 @@ export default [{
 {
     languageOptions: {
         globals: {
-            //            ...globals.browser,
             ...globals.node,
             process: true,
             require: true,

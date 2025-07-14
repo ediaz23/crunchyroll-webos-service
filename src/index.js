@@ -121,6 +121,46 @@ function makeResponse(res, data, log_name, compress, extra) {
     }
 }
 
+/**
+ * @param {Object} obj
+ * @param {import('webos-service').Message} obj.message
+ * @param {import('node-fetch').Response} obj.res
+ * @param {string} obj.id
+ * @param {import('abort-controller').AbortController} obj.controller
+ * @param {string} obj.log_name
+ * @return {Promise}
+ */
+async function asyncRequest({ message, res, id, controller, log_name }) {
+    subscriptions.set(message.uniqueToken, { message, controller })
+    const total = parseInt(res.headers.get('content-length'))
+
+    let loaded = 0
+    res.body.on('data', value => {
+        if (subscriptions.get(message.uniqueToken)) {
+            loaded += value.length
+            if (loaded === value.length) {
+                message.respond(makeResponse(res, value, log_name, false, { id, loaded, total }))
+            } else {
+                const content = Buffer.from(value).toString('base64')
+                log('resT', log_name, res.status)
+                message.respond({ id, loaded, total, content, status: res.status })
+            }
+        }
+    })
+
+    return new Promise((resolve, reject) => {
+        res.body.on('end', () => {
+            subscriptions.delete(message.uniqueToken)
+            resolve()
+        })
+
+        res.body.on('error', (error) => {
+            subscriptions.delete(message.uniqueToken)
+            reject(error)
+        })
+    })
+}
+
 const agentHttps = new https.Agent({ rejectUnauthorized: false })
 const agentHttp = new http.Agent({ rejectUnauthorized: false })
 
@@ -130,7 +170,7 @@ const agentHttp = new http.Agent({ rejectUnauthorized: false })
  */
 const forwardRequest = async message => {
     const payload = JSON.parse(zlib.gunzipSync(Buffer.from(message.payload.d, 'base64')).toString('utf-8'))
-    /** @type {{url: String}} */
+    /** @type {{url: string}} */
     const { url } = payload
     delete payload.url
     /** @type {import('node-fetch').RequestInit}*/
@@ -139,6 +179,17 @@ const forwardRequest = async message => {
     const log_name = `${body.method || 'GET'} ${url_log} ${payload.id || ''}`.trim()
     /** @type {import('abort-controller').AbortController} */
     const controller = new AbortController()
+    /** @type {import('node-fetch').Response}*/
+    let res = {}
+    let timeout = null
+    /** @type {Function} */
+    let resolver
+    /** @type {Function} */
+    let rejecter
+    const prom = new Promise((resolve, reject) => {
+        resolver = resolve
+        rejecter = reject
+    })
     try {
         log('init', log_name)
         if (body.headers && body.headers['Content-Type'] === 'application/octet-stream' && body.body) {
@@ -147,54 +198,31 @@ const forwardRequest = async message => {
         body.agent = url.startsWith('http://') ? agentHttp : agentHttps
         body.timeout = body.timeout || 20000
         body.signal = controller.signal
+        timeout = setTimeout(() => controller.abort(), body.timeout)
 
         /** @type {import('node-fetch').Response}*/
-        const res = await fetch(url, body)
+        res = await fetch(url, body)
         if (message.isSubscription) {
-            subscriptions.set(message.uniqueToken, { message, controller })
-            const total = parseInt(res.headers.get('content-length'))
-            const id = payload.id
-
-            let loaded = 0
-            let error
-            res.body.on('error', err => { error = err })
-            res.body.on('data', value => {
-                if (subscriptions.get(message.uniqueToken)) {
-                    loaded += value.length
-                    if (loaded === value.length) {
-                        message.respond(makeResponse(res, value, log_name, false, { id, loaded, total }))
-                    } else {
-                        const content = Buffer.from(value).toString('base64')
-                        log('resT', log_name, res.status)
-                        message.respond({ id, loaded, total, content, status: res.status })
-                    }
-                }
-            })
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(`${log_name} timeout ${body.timeout}`)
-                }, body.timeout)
-                res.body.on('end', () => {
-                    clearTimeout(timeout)
-                    log('end ', log_name, res.status, error ? 'error' : 'okey')
-                    if (error) {
-                        reject(error)
-                    } else {
-                        resolve()
-                    }
-                })
-            })
+            asyncRequest({ message, res, id: payload.id, controller, log_name }).then(resolver).catch(rejecter)
         } else {
             const data = await res.arrayBuffer()
             message.respond(makeResponse(res, data, log_name, true, {}))
+            resolver()
         }
     } catch (error) {
+        rejecter(error)
+    }
+    prom.then(() => {
+        log('end ', log_name, res.status, 'okey')
+    }).catch(error => {
         console.error('error', log_name, error)
-        if (!message.isSubscription || subscriptions.get(message.uniqueToken)) {
-            errorHandler(message, error)
-        }
-    } finally {
-        subscriptions.delete(message.uniqueToken)
+        log('end ', log_name, res.status, 'error')
+        errorHandler(message, error)
+    }).finally(() => {
+        clearTimeout(timeout)
+    })
+    if (!message.isSubscription) {
+        await prom
     }
 }
 

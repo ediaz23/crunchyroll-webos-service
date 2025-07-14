@@ -190,9 +190,10 @@ const forwardRequest = async message => {
         timeout = setTimeout(() => controller.abort(), body.timeout)
         fetch(url, body).then(res => {
             log('res ', log_name, res.status)
-            return message.isSubscription
-                ? asyncRequest({ message, res, id: body.id, controller, log_name })
-                : res.arrayBuffer().then(data => message.respond(makeResponse(res, data, log_name, true, {})))
+            return (message.isSubscription ?
+                asyncRequest({ message, res, id: body.id, controller, log_name }) :
+                res.arrayBuffer().then(data => message.respond(makeResponse(res, data, log_name, true, {})))
+            )
         }).then(resolve).catch(reject)
     }).then(() => {
         log('end ', log_name, 'okey')

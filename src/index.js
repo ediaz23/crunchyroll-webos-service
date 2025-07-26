@@ -5,6 +5,9 @@ const AbortController = require('abort-controller')
 const https = require('https')
 const http = require('http')
 const zlib = require('zlib')
+const path = require('path')
+const fs = require('fs')
+
 
 const log = (...args) => {
     // #if process.env.NODE_ENV === 'development'
@@ -107,6 +110,8 @@ function makeResponse(res, data, log_name, compress, extra) {
         } else {
             content = buf.toString('base64')
         }
+    } else if (data) {
+        content = data
     }
     const headers = fromEntries(res.headers)
     log('res ', log_name, res.status, extra)
@@ -246,6 +251,61 @@ const testFunciont = async message => {
 }
 
 service.register('test', testFunciont)
+
+/**
+ * @typedef FontEntry
+ * @type {Object}
+ * @property {String} name
+ * @property {String} url
+ * @property {String} [etag]
+ * @property {String} [lastModified]
+ * @property {String} [contentType]
+ * @property {String} [contentLength]
+ */
+
+const crudFonts = async message => {
+    const log_name = 'crudFonts'
+    log('init ', log_name)
+    const fontsDir = path.join(__dirname, 'fonts')
+    /** @type {{type: 'get'|'upsert'|'delete', entry: Object, data: String}} */
+    const { type, entry, data } = message.payload
+    let fonts = []
+    try {
+        if (!fs.existsSync(fontsDir)) {
+            fs.mkdirSync(fontsDir, { recursive: true })
+        }
+        if (type === 'get') {
+            const files = fs.readdirSync(fontsDir)
+            const jsonFiles = files.filter(name => name.endsWith('.json'))
+
+            for (const name of jsonFiles) {
+                const fullPath = path.join(fontsDir, name)
+                const raw = fs.readFileSync(fullPath, 'utf-8')
+                const fontData = JSON.parse(raw)
+                fontData.url = `file://${path.join(fontsDir, fontData.name)}`
+                fonts.push(fontData)
+            }
+        } else if (type === 'upsert') {
+            fs.writeFileSync(path.join(fontsDir, entry.name), Buffer.from(data, 'base64'))
+            fs.writeFileSync(path.join(fontsDir, `${entry.name}.json`), JSON.stringify(entry, null, 2))
+            fonts.push({ url: `file://${path.join(fontsDir, entry.name)}` })
+        } else if (type === 'delete') {
+            if (fs.existsSync(path.join(fontsDir, entry.name))) {
+                fs.unlinkSync(path.join(fontsDir, entry.name))
+                fs.unlinkSync(path.join(fontsDir, `${entry.name}.json`))
+            }
+        } else {
+            throw new Error('type not defined')
+        }
+        message.respond(makeResponse({ status: 200, headers: [] }, JSON.stringify({ status: 'okey', fonts }), log_name))
+    } catch (error) {
+        console.error('error', log_name, error)
+        errorHandler(message, error)
+    }
+    log('end ', log_name, 'error')
+}
+
+service.register('fonts', crudFonts)
 
 module.exports = {
     webosService: service

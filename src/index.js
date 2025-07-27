@@ -110,7 +110,7 @@ function makeResponse(res, data, log_name, compress, extra) {
         } else {
             content = buf.toString('base64')
         }
-    } else if (data) {
+    } else if (typeof data === 'string' || (typeof data === 'object' && Object.keys(data).length > 0)) {
         content = data
     }
     const headers = fromEntries(res.headers)

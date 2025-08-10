@@ -298,11 +298,12 @@ const crudFonts = async message => {
             throw new Error('type not defined')
         }
         message.respond(makeResponse({ status: 200, headers: [] }, JSON.stringify({ status: 'okey', fonts }), log_name))
+        log('end ', log_name)
     } catch (error) {
         console.error('error', log_name, error)
+        log('end ', log_name, 'error')
         errorHandler(message, error)
     }
-    log('end ', log_name, 'error')
 }
 
 service.register('fonts', crudFonts)

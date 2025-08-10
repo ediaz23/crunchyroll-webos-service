@@ -55,6 +55,14 @@ task('index', () => {
     return stream
 })
 
+task('font-folder', (cb) => {
+    exec(`mkdir -p ./dist/src/fonts`, (err, stdout, stderr) => {
+        console.log(stdout)
+        console.log(stderr)
+        cb(err)
+    })
+})
+
 function nodeInstall(cb, extra) {
     exec(`npm ci ${extra} --prefix=./dist`, (err, stdout, stderr) => {
         console.log(stdout)
@@ -70,7 +78,7 @@ function nodeInstall(cb, extra) {
 task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
 task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod'));
-task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod', 'font-folder'));
+task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod', 'font-folder'));
 
 export default gulp

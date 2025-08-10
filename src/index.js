@@ -256,7 +256,6 @@ service.register('test', testFunciont)
  * @typedef FontEntry
  * @type {Object}
  * @property {String} name
- * @property {String} url
  * @property {String} [etag]
  * @property {String} [lastModified]
  * @property {String} [contentType]
@@ -267,7 +266,7 @@ const crudFonts = async message => {
     const log_name = 'crudFonts'
     log('init ', log_name)
     const fontsDir = path.join(__dirname, 'fonts')
-    /** @type {{type: 'get'|'upsert'|'delete', entry: Object, data: String}} */
+    /** @type {{type: 'get'|'upsert'|'delete', entry: FontEntry, data: String}} */
     const { type, entry, data } = message.payload
     let fonts = []
     try {
@@ -285,10 +284,13 @@ const crudFonts = async message => {
                 fontData.url = `file://${path.join(fontsDir, fontData.name)}`
                 fonts.push(fontData)
             }
+        } else if (type === 'get_detail') {
+            const fullPath = path.join(fontsDir, entry.name)
+            const buf = fs.readFileSync(fullPath)
+            fonts.push({ data: buf.toString('base64') })
         } else if (type === 'upsert') {
             fs.writeFileSync(path.join(fontsDir, entry.name), Buffer.from(data, 'base64'))
             fs.writeFileSync(path.join(fontsDir, `${entry.name}.json`), JSON.stringify(entry, null, 2))
-            fonts.push({ url: `file://${path.join(fontsDir, entry.name)}` })
         } else if (type === 'delete') {
             if (fs.existsSync(path.join(fontsDir, entry.name))) {
                 fs.unlinkSync(path.join(fontsDir, entry.name))

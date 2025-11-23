@@ -56,7 +56,7 @@ task('index', () => {
 })
 
 task('font-folder', (cb) => {
-    exec(`mkdir -p ./dist/src/fonts`, (err, stdout, stderr) => {
+    exec(`mkdir -p ./dist/src/fonts && chmod 777 ./dist/src/fonts`, (err, stdout, stderr) => {
         console.log(stdout)
         console.log(stderr)
         cb(err)

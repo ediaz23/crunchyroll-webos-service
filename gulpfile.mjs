@@ -26,7 +26,7 @@ task('clean', () =>
 )
 
 task('misc', () =>
-    src(['LICENSE', 'package.json', 'package-lock.json', 'services.json'])
+    src(['LICENSE', 'package.json', 'package-lock.json', 'services.json', 'patch-node-fetch.js'])
         .pipe(dest('dist'))
 )
 
@@ -62,7 +62,10 @@ function nodeInstall(cb, extra) {
         if (err) {
             cb(err)
         } else {
-            deleteAsync('dist/package-lock.json', { force: true }).then(() => cb()).catch(cb)
+            deleteAsync('dist/package-lock.json', { force: true })
+                .then(() => deleteAsync('dist/patch-node-fetch.js', { force: true }))
+                .then(() => cb())
+                .catch(cb)
         }
     })
 }

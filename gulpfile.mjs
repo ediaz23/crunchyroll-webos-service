@@ -2,6 +2,7 @@
 import gulp, { task, src, dest, series } from 'gulp';
 import jshint from 'gulp-jshint';
 import terser from 'gulp-terser';
+import babel from 'gulp-babel';
 import { deleteAsync } from 'del';
 import { exec } from 'child_process';
 import { Transform } from 'stream';
@@ -37,6 +38,7 @@ task('index', () => {
     stream = stream.pipe(jshint())
     stream = stream.pipe(jshint.reporter('default'))
     stream = stream.pipe(conditionalCompiler())
+    stream = stream.pipe(babel())
     if (isProduction) {
         stream = stream.pipe(terser({
             compress: {

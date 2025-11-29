@@ -2,7 +2,6 @@
 import gulp, { task, src, dest, series } from 'gulp';
 import jshint from 'gulp-jshint';
 import terser from 'gulp-terser';
-import babel from 'gulp-babel';
 import { deleteAsync } from 'del';
 import { exec } from 'child_process';
 import { Transform } from 'stream';
@@ -22,29 +21,12 @@ function conditionalCompiler() {
     });
 }
 
-async function buildLib(lib) {
-    const command = `
-        npx babel dist/node_modules/${lib} --out-dir dist/node_modules/${lib} --extensions ".js,.jsx"
-    `;
-    return new Promise((res, rej) => {
-        exec(command, (err, stdout, stderr) => {
-            console.log(stdout)
-            console.log(stderr)
-            if (err) {
-                rej(err)
-            } else {
-                res()
-            }
-        })
-    })
-}
-
 task('clean', () =>
     deleteAsync('dist/**', { force: true })
 )
 
 task('misc', () =>
-    src(['LICENSE', 'package.json', 'package-lock.json', 'services.json', 'patch-node-fetch.js'])
+    src(['LICENSE', 'package.json', 'package-lock.json', 'services.json'])
         .pipe(dest('dist'))
 )
 
@@ -55,11 +37,9 @@ task('index', () => {
     stream = stream.pipe(jshint())
     stream = stream.pipe(jshint.reporter('default'))
     stream = stream.pipe(conditionalCompiler())
-    stream = stream.pipe(babel())
     if (isProduction) {
         stream = stream.pipe(terser({
             compress: {
-                ecma: 5,
                 pure_getters: true,
                 unsafe: true,
                 unsafe_comps: true,
@@ -68,19 +48,11 @@ task('index', () => {
             mangle: {
                 toplevel: true
             },
-            ecma: 5
+            ecma: 8,
         }))
     }
     stream = stream.pipe(dest('dist/src'))
     return stream
-})
-
-task('font-folder', (cb) => {
-    exec(`mkdir -p ./dist/src/fonts && chmod 777 ./dist/src/fonts`, (err, stdout, stderr) => {
-        console.log(stdout)
-        console.log(stderr)
-        cb(err)
-    })
 })
 
 function nodeInstall(cb, extra) {
@@ -90,24 +62,15 @@ function nodeInstall(cb, extra) {
         if (err) {
             cb(err)
         } else {
-            deleteAsync(['dist/package-lock.json', 'dist/patch-node-fetch.js'], { force: true })
-                .then(() => cb()).catch(cb)
+            deleteAsync('dist/package-lock.json', { force: true }).then(() => cb()).catch(cb)
         }
     })
 }
 
-task('build-libs', (cb) => {
-    Promise.all([
-        buildLib('node-fetch'),
-        buildLib('abort-controller'),
-        buildLib('event-target-shim'),
-    ]).then(() => cb()).catch(cb)
-})
-
 task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
 task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod', 'font-folder', 'build-libs'));
-task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod', 'font-folder', 'build-libs'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod'));
+task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod'));
 
 export default gulp

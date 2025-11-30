@@ -5,8 +5,6 @@ const AbortController = require('abort-controller')
 const https = require('https')
 const http = require('http')
 const zlib = require('zlib')
-const path = require('path')
-const fs = require('fs')
 
 
 const log = (...args) => {

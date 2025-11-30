@@ -22,6 +22,23 @@ function conditionalCompiler() {
     });
 }
 
+async function buildLib(lib) {
+    const command = `
+        npx babel dist/node_modules/${lib} --out-dir dist/node_modules/${lib} --extensions ".js,.jsx"
+    `;
+    return new Promise((res, rej) => {
+        exec(command, (err, stdout, stderr) => {
+            console.log(stdout)
+            console.log(stderr)
+            if (err) {
+                rej(err)
+            } else {
+                res()
+            }
+        })
+    })
+}
+
 task('clean', () =>
     deleteAsync('dist/**', { force: true })
 )
@@ -42,6 +59,7 @@ task('index', () => {
     if (isProduction) {
         stream = stream.pipe(terser({
             compress: {
+                ecma: 5,
                 pure_getters: true,
                 unsafe: true,
                 unsafe_comps: true,
@@ -50,7 +68,7 @@ task('index', () => {
             mangle: {
                 toplevel: true
             },
-            ecma: 8,
+            ecma: 5
         }))
     }
     stream = stream.pipe(dest('dist/src'))
@@ -64,18 +82,24 @@ function nodeInstall(cb, extra) {
         if (err) {
             cb(err)
         } else {
-            deleteAsync('dist/package-lock.json', { force: true })
-                .then(() => deleteAsync('dist/patch-node-fetch.js', { force: true }))
-                .then(() => cb())
-                .catch(cb)
+            deleteAsync(['dist/package-lock.json', 'dist/patch-node-fetch.js'], { force: true })
+                .then(() => cb()).catch(cb)
         }
     })
 }
 
+task('build-libs', (cb) => {
+    Promise.all([
+        buildLib('node-fetch'),
+        buildLib('abort-controller'),
+        buildLib('event-target-shim'),
+    ]).then(() => cb()).catch(cb)
+})
+
 task('node-insta-dev', (cb) => { nodeInstall(cb, '') })
 task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
-task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod'));
-task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod'));
+task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod', 'build-libs'));
+task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod', 'build-libs'));
 
 export default gulp

@@ -2,6 +2,7 @@
 require('core-js/stable/array/index')
 var util = require('util');
 var assert = require('assert');
+var zlib = require('zlib')
 var mainCode = require('../dist/src/index');
 
 /** 
@@ -134,7 +135,7 @@ function makeRequest(body) {
                     }
                 }
             },
-            payload: body || {},
+            payload: { d: zlib.gzipSync(Buffer.from(JSON.stringify(body || {}), 'utf-8')).toString('base64') },
             id: body.id,
             isSubscription: body.isSubscription,
             uniqueToken: 'j' + Math.floor(1000 + Math.random() * 9000),
@@ -161,7 +162,7 @@ function runTest() {
                 }).then(function(responses) {
                     expect(responses.status).toBe(status);
                     expect(responses.content).toBeDefined();
-                    const decodedString = Buffer.from(responses.content, 'base64').toString('utf-8');
+                    const decodedString = zlib.gunzipSync(Buffer.from(responses.content, 'base64')).toString('utf-8')
                     expect(decodedString).toBe(body);
                 })
             });
@@ -199,7 +200,7 @@ function runTest() {
                     }).then(function(responses) {
                         expect(responses.status).toBe(status);
                         expect(responses.content).toBeDefined();
-                        var decodedString = Buffer.from(responses.content, 'base64').toString('utf-8');
+                        var decodedString = zlib.gunzipSync(Buffer.from(responses.content, 'base64')).toString('utf-8');
                         expect(decodedString).toBe(body);
                     })
                 });
@@ -214,7 +215,7 @@ function runTest() {
                     }).then(function(responses) {
                         expect(responses.status).toBe(status);
                         expect(responses.content).toBeDefined();
-                        var decodedString = Buffer.from(responses.content, 'base64').toString('utf-8');
+                        var decodedString = zlib.gunzipSync(Buffer.from(responses.content, 'base64')).toString('utf-8');
                         expect(decodedString).toBe(data);
                     })
                 });

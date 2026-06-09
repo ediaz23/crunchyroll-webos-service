@@ -124,6 +124,7 @@ gulp.task('gulp-postinstall', (cb) => {
         return handleError(cb)(err)
     }
 
+    /* comentado fsevents
     try {
         const packagePath = './package-lock.json'
         const packageContent = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
@@ -136,6 +137,7 @@ gulp.task('gulp-postinstall', (cb) => {
     } catch (err) {
         return handleError(cb)(err)
     }
+    */
 
     cb()
 })

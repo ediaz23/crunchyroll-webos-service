@@ -1,4 +1,5 @@
 
+import fs from 'fs'
 import gulp, { task, src, dest, series } from 'gulp';
 import jshint from 'gulp-jshint';
 import terser from 'gulp-terser';
@@ -9,10 +10,19 @@ import { Transform } from 'stream';
 import conditionalLoader from 'webpack-conditional-loader';
 
 
-function conditionalCompiler() {
+function handleError (cb) {
+    return (err, stdout, stderr) => {
+        if (stdout) { console.log(stdout) }
+        if (stderr) { console.log(stderr) }
+        if (err) { console.error(err) }
+        cb(err)
+    }
+}
+
+function conditionalCompiler () {
     return new Transform({
         objectMode: true,
-        transform(file, encoding, callback) {
+        transform (file, encoding, callback) {
             if (file.isBuffer()) {
                 const content = file.contents.toString(encoding);
                 file.contents = Buffer.from(conditionalLoader(content));
@@ -22,7 +32,7 @@ function conditionalCompiler() {
     });
 }
 
-async function buildLib(lib) {
+async function buildLib (lib) {
     const command = `
         npx babel dist/node_modules/${lib} --out-dir dist/node_modules/${lib} --extensions ".js,.jsx"
     `;
@@ -75,7 +85,7 @@ task('index', () => {
     return stream
 })
 
-function nodeInstall(cb, extra) {
+function nodeInstall (cb, extra) {
     exec(`npm ci ${extra} --prefix=./dist`, (err, stdout, stderr) => {
         console.log(stdout)
         console.log(stderr)
@@ -101,5 +111,33 @@ task('node-insta-prod', (cb) => { nodeInstall(cb, '--omit=dev') })
 
 task('build-dev', series('clean', 'misc', 'index', 'node-insta-prod', 'build-libs'));
 task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod', 'build-libs'));
+
+gulp.task('gulp-postinstall', (cb) => {
+    try {
+        exec('node patch-node-fetch.js', { encoding: 'utf-8' }, (err, out) => {
+            if (err) {
+                throw err
+            }
+            process.stdout.write(out)
+        })
+    } catch (err) {
+        return handleError(cb)(err)
+    }
+
+    try {
+        const packagePath = './package-lock.json'
+        const packageContent = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
+        const filteredPackages = Object.fromEntries(
+            Object.entries(packageContent.packages)
+                .filter(([key]) => !key.endsWith('/fsevents'))
+        )
+        packageContent.packages = filteredPackages
+        fs.writeFileSync(packagePath, JSON.stringify(packageContent, null, '    '), 'utf8')
+    } catch (err) {
+        return handleError(cb)(err)
+    }
+
+    cb()
+})
 
 export default gulp

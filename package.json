@@ -10,7 +10,7 @@
         "build": "NODE_ENV=development gulp build-dev",
         "build-p": "NODE_ENV=production gulp build-prod",
         "test": "./test.sh",
-        "postinstall": "node patch-node-fetch.js"
+        "postinstall": "gulp gulp-postinstall"
     },
     "repository": {
         "type": "git",

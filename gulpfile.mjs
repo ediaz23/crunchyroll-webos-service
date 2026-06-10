@@ -1,5 +1,7 @@
 
 import fs from 'fs'
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import gulp, { task, src, dest, series } from 'gulp';
 import jshint from 'gulp-jshint';
 import terser from 'gulp-terser';
@@ -8,6 +10,10 @@ import { deleteAsync } from 'del';
 import { exec } from 'child_process';
 import { Transform } from 'stream';
 import conditionalLoader from 'webpack-conditional-loader';
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 function handleError (cb) {
@@ -114,7 +120,7 @@ task('build-prod', series('clean', 'misc', 'index', 'node-insta-prod', 'build-li
 
 gulp.task('gulp-postinstall', (cb) => {
     try {
-        exec('node patch-node-fetch.js', { encoding: 'utf-8' }, (err, out) => {
+        exec('node patch-node-fetch.js', { encoding: 'utf-8', cwd: __dirname }, (err, out) => {
             if (err) {
                 throw err
             }
@@ -138,7 +144,7 @@ gulp.task('gulp-postinstall', (cb) => {
         return handleError(cb)(err)
     }
     */
-
+    process.stdout.write('gulp-postinstall okey\n')
     cb()
 })
 

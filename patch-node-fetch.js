@@ -1,11 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-function patchNodeFetch() {
-    const filePath = path.resolve(
-        __dirname,
-        'node_modules/node-fetch/lib/index.js'
-    );
+const filePath = path.resolve(__dirname, 'dist/node_modules/node-fetch/lib/index.js');
+
+if (fs.existsSync(filePath)) {
 
     try {
         let content = fs.readFileSync(filePath, 'utf8');
@@ -32,10 +30,8 @@ function patchNodeFetch() {
         fs.writeFileSync(filePath, content, 'utf8');
         console.log('node-fetch patched.')
     } catch (error) {
-        console.error('Error patching node-fetch:', error);
+        console.log('node-fetch error', error);
     }
-}
-
-if (__dirname.endsWith('dist')) {
-    patchNodeFetch()
+} else {
+    console.log('node-fetch file not found', filePath);
 }

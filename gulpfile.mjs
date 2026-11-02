@@ -26,7 +26,7 @@ task('clean', () =>
 )
 
 task('misc', () =>
-    src(['LICENSE', 'package.json', 'package-lock.json', 'services.json'])
+    src(['LICENSE', 'package.json', 'package-lock.json', 'services.json', 'cacert.pem'])
         .pipe(dest('dist'))
 )
 

@@ -5,6 +5,8 @@ const AbortController = require('abort-controller')
 const https = require('https')
 const http = require('http')
 const zlib = require('zlib')
+const fs = require('fs')
+const path = require('path')
 
 
 const log = (...args) => {
@@ -164,8 +166,24 @@ async function asyncRequest({ message, res, id, controller, log_name }) {
     })
 }
 
-const agentHttps = new https.Agent({ rejectUnauthorized: false })
-const agentHttp = new http.Agent({ rejectUnauthorized: false })
+/**
+ * webOS 3.x ships Node 0.12, whose built-in CA list is from 2015, so verify
+ * against the Mozilla bundle shipped with the service instead of not verifying.
+ * Node 0.12 only takes `ca` as an array of PEM strings.
+ * @returns {Array<String>|undefined} undefined falls back to Node's own list
+ */
+const loadCaBundle = () => {
+    try {
+        const pem = fs.readFileSync(path.join(__dirname, '..', 'cacert.pem'), 'utf8')
+        return pem.split(/(?=-----BEGIN CERTIFICATE-----)/).filter(cert => cert.indexOf('BEGIN CERTIFICATE') >= 0)
+    } catch (error) {
+        console.error('cacert.pem not loaded, using the default CA list', error)
+        return undefined
+    }
+}
+
+const agentHttps = new https.Agent({ ca: loadCaBundle() })
+const agentHttp = new http.Agent()
 
 /**
  * @param {import('webos-service').Message} message
